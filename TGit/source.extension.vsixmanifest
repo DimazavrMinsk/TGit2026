@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="f4ddbfad-b5f6-4248-aa82-6d21e045e8da" Version="1.0.0" Language="en-US" Publisher="Dmitriy Gorbachevskiy" />
+        <Identity Id="f4ddbfad-b5f6-4248-aa82-6d21e045e8da" Version="1.1.0" Language="en-US" Publisher="Dmitriy Gorbachevskiy" />
         <DisplayName>TGit2026</DisplayName>
         <Description xml:space="preserve">Control TortoiseGit from within Visual Studio</Description>
         <MoreInfo>https://github.com/DimazavrMinsk/TGit2026.git</MoreInfo>

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System;
 
 namespace TGit.Models
 {
@@ -13,46 +13,26 @@ namespace TGit.Models
         public string BugTraqMessage = string.Empty;
         public string SvnUrl = string.Empty;
 
-        public GitConfig()
-        {
-            
-        }
+        public GitConfig() { }
 
         public GitConfig(string input)
         {
-            foreach (var line in input.Split(';'))
+            foreach (var line in (input ?? string.Empty).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                if (line.StartsWith("gitflow.branch.master"))
+                var separator = line.IndexOfAny(new[] { ' ', '\t' });
+                if (separator < 0) continue;
+                var key = line.Substring(0, separator);
+                var value = line.Substring(separator + 1);
+                switch (key)
                 {
-                    MasterBranch = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("gitflow.branch.develop"))
-                {
-                    DevelopBranch = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("gitflow.prefix.feature"))
-                {
-                    FeaturePrefix = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("gitflow.prefix.release"))
-                {
-                    ReleasePrefix = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("gitflow.prefix.hotfix"))
-                {
-                    HotfixPrefix = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("gitflow.prefix.versiontag"))
-                {
-                    TagPrefix = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("bugtraq.message"))
-                {
-                    BugTraqMessage = line.Split(' ').Last();
-                }
-                else if (line.StartsWith("svn-remote.svn.url"))
-                {
-                    SvnUrl = line.Split('=').Last();
+                    case "gitflow.branch.master": MasterBranch = value; break;
+                    case "gitflow.branch.develop": DevelopBranch = value; break;
+                    case "gitflow.prefix.feature": FeaturePrefix = value; break;
+                    case "gitflow.prefix.release": ReleasePrefix = value; break;
+                    case "gitflow.prefix.hotfix": HotfixPrefix = value; break;
+                    case "gitflow.prefix.versiontag": TagPrefix = value; break;
+                    case "bugtraq.message": BugTraqMessage = value; break;
+                    case "svn-remote.svn.url": SvnUrl = value; break;
                 }
             }
         }

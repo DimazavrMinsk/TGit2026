@@ -16,9 +16,7 @@ namespace TGit.Commands
             await ProcessHelper.RunTortoiseGitCommand("stashpop");
         }
 
-        protected override async void BeforeQueryStatus(EventArgs e)
-        {
-            Command.Enabled = await GitHelper.HasStash();
-        }
+        protected override void BeforeQueryStatus(EventArgs e)
+            => CommandHelper.RunAsync(async () => Command.Enabled = await GitHelper.HasStash(), false);
     }
 }

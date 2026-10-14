@@ -1,9 +1,29 @@
 # TGit2026
 Control TortoiseGit from within Visual Studio
 
+Current version: **1.1.0**.
+
 This project is based on [TGit by sboulema](https://github.com/sboulema/TGit).
 Many thanks to the original author, sboulema, for the work put into creating
 and developing TGit.
+
+## What's new in 1.1.0
+
+- GitFlow runs Git directly with separate arguments, stops at the first failed
+  command, and reads standard output and standard error concurrently.
+- Finishing operations respect each push and branch-deletion checkbox. Failed
+  operations do not run follow-up cleanup.
+- Start Feature and GitHub Flow finishing work with the updated process runner.
+  GitHub Flow supports the default branch selected by `origin/HEAD`, with local
+  `main` and then `master` as fallbacks.
+- GitFlow Init/Config replaces existing settings and refreshes the configuration
+  used by the extension. Git executable discovery accepts a directory or a full
+  `git.exe` path from TortoiseGit's setting.
+- Previous-revision comparison uses the full file path and handles filenames
+  containing spaces and Unicode. GitFlow output windows remain associated with
+  the repository where the operation started.
+- The solution includes 13 regression scenarios covering process handling and
+  local Git workflows.
 
 ## Visual Studio 2026
 
@@ -38,6 +58,30 @@ from Visual Studio, rather than `dotnet build`, for this classic VSIX/WPF projec
 The project explicitly names the installer `TGit2026.vsix` in both configurations:
 `TGit\bin\Debug\TGit2026.vsix` for Debug and `TGit\bin\Release\TGit2026.vsix` for Release.
 
+### Regression checks
+
+The solution includes a .NET Framework 4.8 console test runner with no test framework
+dependencies. After building Release, run:
+
+```powershell
+.\tests\bin\Release\TGit.RegressionTests.exe
+```
+
+Git must be on PATH, or pass the full path to `git.exe` as the first argument:
+
+```powershell
+.\tests\bin\Release\TGit.RegressionTests.exe 'C:\Program Files\Git\bin\git.exe'
+```
+
+The runner exits with code `0` when all scenarios pass and `1` on failure. The
+checks use temporary local repositories and remotes, isolate Git configuration,
+and remove their temporary files. They cover argument quoting, concurrent process
+output, failure handling, GitFlow configuration, GitHub Flow, release tags, all
+cleanup checkbox combinations, and filenames containing spaces and Unicode.
+
+These checks exercise the process runner and Git workflows. They do not replace
+the Visual Studio installation and UI checks below.
+
 ### Installing and checking in Visual Studio 2026
 
 1. Close Visual Studio, run `TGit2026.vsix`, and select Visual Studio 2026.
@@ -62,7 +106,7 @@ Git for Windows and TortoiseGit must be installed for these checks.
 4. Open a solution in a Git repository and use the **TGit** menu.
 
 ## Options
-TGit2026 has several options: 
+Open **Tools > Options > TGit > General** to configure these options.
 
 **Default commit message:**
 
@@ -96,18 +140,21 @@ You can change what happens to the TortoiseGit dialogs after their operations:
 These options set defaults for GitFlow operations:
 
 - **Delete local branch**, **Delete remote branch**, **Push changes**: Default
-  checkbox values in the finishing dialog; see the GitFlow limitation below.
-- **Pull changes**: Pull before starting a feature/release and before merging
-  when finishing it. Enabled by default.
-- **Use annotated tag**: Create an annotated tag when finishing a release
-  (otherwise, create a lightweight tag).
+  checkbox values in the finishing dialog. Each checkbox controls its own action;
+  all three are unchecked by default.
+- **Pull changes**: Pull the base branch before starting a feature, release, or
+  hotfix, and pull each target branch before merging when finishing a workflow.
+  Also applies to GitHub Flow. Enabled by default.
+- **Use annotated tag**: Prompt for a message and create an annotated tag when
+  finishing a release or hotfix. Disabled by default; otherwise the tag is
+  lightweight. An empty or cancelled annotation prompt stops the operation.
 
 **Default bug id:** Uses the same macros as the default commit message. Passed
 to the commit dialog when the repository has a `bugtraq.message` setting.
 
 **Save files before operations:** Runs Visual Studio's Save All command before
-the main-menu and file-context operations that use this option. GitFlow commands
-do not use it.
+the main-menu and file-context operations that use this option, including GitFlow
+and GitHub Flow workflows. Disabled by default.
 
 ## Keyboard shortcuts
 
@@ -133,7 +180,7 @@ then press the second key. Visual Studio keyboard settings can override them.
 * `(G)it (T)ag` - Ctrl+Shift+Alt+G, T
 * `(G)it Rebase` - Ctrl+Shift+Alt+G, G
 
-## Gitflow
+## GitFlow
 The [GitFlow](https://nvie.com/posts/a-successful-git-branching-model/) commands
 use the branch names and prefixes configured through **TGit > GitFlow > Init/Config**
 and stored in the repository's `gitflow.*` settings. The names `develop` and
@@ -143,49 +190,97 @@ they do not have to use those literal names.
 Pull steps run only when **Pull changes** is enabled. Push and remote branch
 deletion use the remote named `origin`.
 
-##### Start New Feature
+### Init / Config
+
+Use **Init** to choose production and development branches and feature, release,
+hotfix, and tag prefixes. Once GitFlow is configured, the command is named
+**Config**. Saving replaces the corresponding `gitflow.*` values and refreshes
+the extension's cached configuration.
+
+If the local development branch already exists, it is preserved. Otherwise,
+the command creates it to track `origin/<develop>` when that remote branch exists,
+or creates it from the configured production branch. Init/Config does not push
+branches to the remote.
+
+### Start New Feature
 
 1. Switch to the develop branch
 2. Pull latest changes on develop, if enabled
 3. Create and switch to a branch using the configured feature prefix
 
-Known limitation: the current implementation does not await the SSH setup
-helper when building this command. The resulting command contains the task's
-string representation, so this workflow needs a code fix before it can be
-relied on.
-
-##### Finish Feature
+### Finish Feature
 
 1. Switch to the develop branch
 2. Pull latest changes on develop, if enabled
-3. Merge the feature branch into develop with `--no-ff`
-4. After the initial command finishes, choose the finishing options in the
-   output dialog and click **OK**. The follow-up command pushes develop if
-   selected, attempts to delete the local feature branch, then deletes the
-   remote feature branch if selected.
+3. Merge the feature branch into develop with `--no-ff --no-edit`
+4. After a successful merge, select the finishing options described below and
+   click **OK**. The push option sends develop to `origin`.
 
-##### Start New Release
+### Start New Release
 
 1. Switch to the develop branch
 2. Pull latest changes on develop, if enabled
 3. Create and switch to a branch using the configured release prefix
 
-##### Finish Release
+### Finish Release
 
 1. Switch to the master branch
 2. Pull latest changes on master, if enabled
-3. Merge the release branch into master with `--no-ff`
+3. Merge the release branch into master with `--no-ff --no-edit`
 4. Tag the release using the configured tag prefix; prompt for a message when
    **Use annotated tag** is enabled
 5. Switch to the develop branch
 6. Pull latest changes on develop, if enabled
-7. Merge the release branch into develop with `--no-ff`
-8. After the initial command finishes, choose the finishing options in the
-   output dialog and click **OK**. If **Push changes** is selected, push develop,
-   master, and the release tag, in that order. Then attempt to delete the local
-   release branch and delete the remote release branch if selected.
+7. Merge the release branch into develop with `--no-ff --no-edit`
+8. After success, select the finishing options and click **OK**. The push option
+   sends develop, master, and the release tag to `origin`, in that order.
 
-Known limitation for finishing workflows: when any of **Delete local branch**,
-**Delete remote branch**, or **Push changes** is checked, the follow-up command
-always includes local branch deletion (`git branch -d`), even when **Delete local
-branch** is unchecked. If all three are unchecked, no follow-up command runs.
+### Start New Hotfix
+
+1. Switch to the master branch
+2. Pull latest changes on master, if enabled
+3. Create and switch to a branch using the configured hotfix prefix
+
+### Finish Hotfix
+
+Use the same sequence as **Finish Release**, merging the hotfix branch into
+master and develop and creating a tag from the tag prefix and hotfix version.
+The push option sends develop, master, and the hotfix tag to `origin`.
+
+### Finishing options and failures
+
+After a successful feature, release, or hotfix operation, the output window offers:
+
+| Option | Action |
+| --- | --- |
+| Push changes | Push the target branches and any release/hotfix tag to `origin` |
+| Delete local branch | Delete the source branch with `git branch -d` |
+| Delete remote branch | Delete the source branch on `origin`; available when its remote-tracking ref exists |
+
+Click **OK** to run the selected actions in the order shown. If all options are
+unchecked, **OK** closes the window without running follow-up commands. Local
+deletion is never implied by push or remote deletion. After the follow-up run,
+click **OK** again to close the window.
+
+Every sequence stops at the first failed Git command. If the main operation
+fails, **OK** closes the output window without pushing or deleting branches.
+Completed Git commands are not rolled back automatically; inspect the output
+and repository state before continuing after a failure. Closing an output window
+does not cancel an operation already running.
+
+## GitHub Flow
+
+The **GitHubFlow** submenu is shown for repositories without GitFlow configuration.
+It does not require `gitflow.*` settings or a feature prefix. Its base branch is
+the branch referenced by local `origin/HEAD`; if that ref is absent, the extension
+uses local `main` when available, otherwise `master`.
+
+- **Start New GitHubFlow Feature** switches to the base branch, pulls if enabled,
+  then creates and switches to the branch name entered in the dialog.
+- **Finish GitHubFlow Feature** switches to the base branch, pulls if enabled,
+  then merges the current feature branch with `--no-ff --no-edit`. Run it from
+  the feature branch, rather than from the base branch or a detached HEAD.
+
+After a successful finish, the same finishing checkboxes control pushing the base
+branch and deleting the local and remote feature branches. These commands merge
+branches directly; they do not create GitHub pull requests.

@@ -16,14 +16,15 @@ namespace TGit.Helpers
                 "ProcPath", @"C:\Program Files\TortoiseGit\bin\TortoiseGitProc.exe");
 
         public static string GetTortoiseGitPlink()
-            => (string)Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\TortoiseGit",
-                "ProcPath", @"C:\Program Files\TortoiseGit\bin\TortoiseGitPlink.exe");
+            => Path.Combine(Path.GetDirectoryName(GetTortoiseGitProc()), "TortoiseGitPlink.exe");
 
         public static string GetMSysGit()
         {
             var regPath = (string)Registry.GetValue(@"HKEY_CURRENT_USER\Software\TortoiseGit",
-                "MSysGit", @"C:\Program Files (x86)\Git\bin\git.exe");
-            return Path.Combine(regPath, "git.exe");
+                "MSysGit", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Git", "bin"));
+            return string.Equals(Path.GetFileName(regPath), "git.exe", StringComparison.OrdinalIgnoreCase)
+                ? regPath
+                : Path.Combine(regPath, "git.exe");
         }
 
         /// <summary>
@@ -143,7 +144,7 @@ namespace TGit.Helpers
         public static async Task<string> GetActiveDocumentFilePath()
         {
             var windowFrame = await VS.Windows.GetCurrentWindowAsync();
-            var solutionExplorerIsActive = windowFrame.Guid == new Guid(WindowGuids.SolutionExplorer);
+            var solutionExplorerIsActive = windowFrame?.Guid == new Guid(WindowGuids.SolutionExplorer);
 
             // Context menu in the Solution Explorer
             if (solutionExplorerIsActive)

@@ -19,7 +19,7 @@
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <ApplicationVersion>1.1.0.%2a</ApplicationVersion>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
@@ -156,6 +156,8 @@
     <Compile Include="Helpers\CommandHelper.cs" />
     <Compile Include="Helpers\FileHelper.cs" />
     <Compile Include="Helpers\GitHelper.cs" />
+    <Compile Include="Helpers\GitProcess.cs" />
+    <Compile Include="Helpers\GitFlowPlan.cs" />
     <Compile Include="Helpers\ProcessHelper.cs" />
     <Compile Include="Options\General.cs" />
     <Compile Include="OutputBox.cs">

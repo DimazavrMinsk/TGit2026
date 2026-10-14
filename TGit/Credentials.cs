@@ -8,9 +8,13 @@ namespace TGit
 {
     public partial class Credentials : Form
     {
-        public Credentials()
+        private readonly string _workingDirectory;
+
+        public Credentials(string workingDirectory)
         {
             InitializeComponent();
+            _workingDirectory = workingDirectory;
+            okButton.DialogResult = DialogResult.None;
             emailTextBox.KeyDown += EmailTextBox_KeyDown;
         }
 
@@ -29,10 +33,35 @@ namespace TGit
 
         private void okButton_Click(object sender, EventArgs e)
         {
-            ProcessHelper.StartProcessGit($"config user.name \"{nameTextBox.Text}\"").FireAndForget();
-            ProcessHelper.StartProcessGit($"config user.email \"{emailTextBox.Text}\"").FireAndForget();
-            DialogResult = DialogResult.OK;
-            Close();
+            if (!okButton.Enabled) return;
+            CommandHelper.RunAsync(async () =>
+            {
+                if (string.IsNullOrWhiteSpace(nameTextBox.Text) || string.IsNullOrWhiteSpace(emailTextBox.Text))
+                {
+                    MessageBox.Show(this, "Enter a name and email address.", "TGit");
+                    return;
+                }
+                okButton.Enabled = false;
+                try
+                {
+                    var name = await ProcessHelper.QueryGitAsync(_workingDirectory, "config", "user.name", nameTextBox.Text);
+                    var email = name.Succeeded
+                        ? await ProcessHelper.QueryGitAsync(_workingDirectory, "config", "user.email", emailTextBox.Text)
+                        : name;
+                    if (IsDisposed) return;
+                    if (!name.Succeeded || !email.Succeeded)
+                    {
+                        MessageBox.Show(this, email.Error, "TGit error");
+                        return;
+                    }
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                finally
+                {
+                    if (!IsDisposed) okButton.Enabled = true;
+                }
+            });
         }
     }
 }

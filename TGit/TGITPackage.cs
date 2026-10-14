@@ -12,7 +12,7 @@ namespace TGit
 {
     [Guid(PackageGuids.guidTGitPkgString)]
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-    [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)]
+    [InstalledProductRegistration("#110", "#112", "1.1.0", IconResourceID = 400)]
     [ProvideOptionPage(typeof(OptionsProvider.GeneralOptions), "TGit", "General", 0, 0, true)]
     [ProvideProfile(typeof(OptionsProvider.GeneralOptions), "TGit", "General", 0, 0, true)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
@@ -23,6 +23,7 @@ namespace TGit
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
+            CommandHelper.Initialize(JoinableTaskFactory);
             await this.RegisterCommandsAsync();
 
             var menuCommandService = (IMenuCommandService)await GetServiceAsync(typeof(IMenuCommandService));

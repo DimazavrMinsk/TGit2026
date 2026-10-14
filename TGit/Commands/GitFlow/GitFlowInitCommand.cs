@@ -1,6 +1,8 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
 using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
@@ -11,41 +13,28 @@ namespace TGit.Commands
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-            var flowDialog = new FlowDialog();
-
-            if (flowDialog.ShowDialog() != DialogResult.OK)
+            using (var dialog = new FlowDialog())
             {
-                return;
+                if (dialog.ShowDialog() != DialogResult.OK) return;
+                var config = dialog.GitConfig;
+                var localExists = await ProcessHelper.GitSucceededAsync("show-ref", "--verify", "--quiet", "refs/heads/" + config.DevelopBranch);
+                var remoteExists = await GitHelper.RemoteBranchExists(config.DevelopBranch);
+                await CommandHelper.SaveFiles();
+                try
+                {
+                    await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Configure(config, localExists, remoteExists), "Configuring GitFlow");
+                }
+                finally
+                {
+                    GitHelper.InvalidateGitConfig();
+                }
             }
-
-            var versionTag = string.IsNullOrEmpty(flowDialog.GitConfig.TagPrefix) ? "\"\"" : flowDialog.GitConfig.TagPrefix;
-
-            /* 1. Add GitFlow config options
-             * 2. Checkout develop branch (create if it doesn't exist, reset if it does)
-             * 3. Push develop branch
-             */
-            var process = await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                await GitHelper.GetSshSetup() +
-                GitHelper.FormatCliCommand($"config --add gitflow.branch.master {flowDialog.GitConfig.MasterBranch}") +
-                GitHelper.FormatCliCommand($"config --add gitflow.branch.develop {flowDialog.GitConfig.DevelopBranch}") +
-                GitHelper.FormatCliCommand($"config --add gitflow.prefix.feature {flowDialog.GitConfig.FeaturePrefix}") +
-                GitHelper.FormatCliCommand($"config --add gitflow.prefix.release {flowDialog.GitConfig.ReleasePrefix}") +
-                GitHelper.FormatCliCommand($"config --add gitflow.prefix.hotfix {flowDialog.GitConfig.HotfixPrefix}") +
-                GitHelper.FormatCliCommand($"config --add gitflow.prefix.versiontag {versionTag}") +
-                (await GitHelper.RemoteBranchExists(flowDialog.GitConfig.DevelopBranch) ?
-                    "echo." :
-                    GitHelper.FormatCliCommand($"checkout -b {flowDialog.GitConfig.DevelopBranch}", false)),
-                "Initializing GitFlow"
-                );
-            process.WaitForExit();
         }
-
-        protected override async void BeforeQueryStatus(System.EventArgs e)
-        {
-            Command.Enabled = await FileHelper.HasSolutionDir();
-            Command.Text = await GitHelper.IsGitFlow() ? "Config" : "Init";
-        }
+        protected override void BeforeQueryStatus(EventArgs e)
+            => CommandHelper.RunAsync(async () =>
+            {
+                Command.Enabled = await FileHelper.HasSolutionDir();
+                Command.Text = await GitHelper.IsGitFlow() ? "Config" : "Init";
+            }, false);
     }
 }

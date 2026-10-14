@@ -1,0 +1,20 @@
+<Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <AssemblyName>TGit.RegressionTests</AssemblyName>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Compile Include="RegressionTests.cs" />
+    <Compile Include="..\TGit\Helpers\GitProcess.cs"><Link>GitProcess.cs</Link></Compile>
+    <Compile Include="..\TGit\Helpers\GitFlowPlan.cs"><Link>GitFlowPlan.cs</Link></Compile>
+    <Compile Include="..\TGit\Models\GitConfig.cs"><Link>GitConfig.cs</Link></Compile>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+</Project>

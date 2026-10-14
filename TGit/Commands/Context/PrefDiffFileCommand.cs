@@ -14,17 +14,20 @@ namespace TGit.Commands
             await CommandHelper.SaveFiles();
 
             var filePath = await FileHelper.GetActiveDocumentFilePath();
-            var exactFilePath = FileHelper.GetExactFileName(filePath);
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+            var exactFilePath = FileHelper.GetExactPathName(filePath);
 
-            var revisions = await ProcessHelper.GitResult(Path.GetDirectoryName(filePath), $"log -2 --pretty=format:%h {exactFilePath}");
+            var result = await ProcessHelper.QueryGitAsync(Path.GetDirectoryName(exactFilePath),
+                "log", "-2", "--pretty=format:%h", "--", Path.GetFileName(exactFilePath));
+            var revisions = result.Output.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
 
-            if (!revisions.Contains(","))
+            if (!result.Succeeded || revisions.Length < 2)
             {
                 await VS.MessageBox.ShowErrorAsync("Could not determine the last committed revision!");
                 return;
             }
 
-            await ProcessHelper.RunTortoiseGitFileCommand("diff", $"/startrev:{revisions.Split(',')[0]} /endrev:{revisions.Split(',')[1]}", exactFilePath);
+            await ProcessHelper.RunTortoiseGitFileCommand("diff", $"/startrev:{revisions[1]} /endrev:{revisions[0]}", exactFilePath);
         }
     }
 }

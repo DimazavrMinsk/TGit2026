@@ -1,7 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -11,61 +13,32 @@ namespace TGit.Commands
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-            var hotfixBranch = await GitHelper.GetCurrentBranchName(false);
-            var hotfixName = await GitHelper.GetCurrentBranchName(true);
-            var gitConfig = await GitHelper.GetGitConfig();
-            var options = await General.GetLiveInstanceAsync();
-            var isGitFlow = GitHelper.IsGitFlow(gitConfig);
-
-            if (!isGitFlow)
+            var config = await GitHelper.GetGitConfig(refresh: true);
+            if (!GitHelper.IsGitFlow(config))
             {
                 await VS.MessageBox.ShowErrorAsync("GitFlow is not initialized.");
                 return;
             }
-
-            if (!hotfixBranch.StartsWith(gitConfig.HotfixPrefix))
+            var branch = await GitHelper.GetCurrentBranchName(false);
+            if (string.IsNullOrEmpty(branch) || !branch.StartsWith(config.HotfixPrefix, StringComparison.Ordinal) ||
+                branch == config.MasterBranch || branch == config.DevelopBranch)
             {
                 await VS.MessageBox.ShowErrorAsync("Current branch is not a hotfix branch.");
                 return;
             }
-
-            var tagMessage = string.Empty;
-
-            if (options.UseAnnotatedTag)
-            {
-                tagMessage = Interaction.InputBox("Tag message:", "Finish hotfix");
-            }
-
-            /* 1. Switch to the master branch
-             * 2. Pull latest changes on master
-             * 3. Merge the hotfix branch to master
-             * 4. Tag the hotfix
-             * 5. Switch to the develop branch
-             * 6. Pull latest changes on develop
-             * 7. Merge the hotfix branch to develop
-             * 8. Push all changes to develop
-             * 9. Push all changes to master
-             * 10. Push the tag
-             * 11. Delete the local hotfix branch
-             * 12. Delete the remote hotfix branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    await GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand($"checkout {gitConfig.MasterBranch}") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"merge --no-ff {hotfixBranch}") +
-                    (options.UseAnnotatedTag ? GitHelper.FormatCliCommand($"tag -a {gitConfig.TagPrefix}{hotfixName} -m \"{tagMessage}\"") : GitHelper.FormatCliCommand($"tag {gitConfig.TagPrefix}{hotfixName}")) +
-                    GitHelper.FormatCliCommand($"checkout {gitConfig.DevelopBranch}") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"merge --no-ff {hotfixBranch}", false),
-                $"Finishing hotfix {hotfixName}",
-                hotfixBranch, null,
-                    GitHelper.FormatCliCommand($"push origin {gitConfig.DevelopBranch}") +
-                    GitHelper.FormatCliCommand($"push origin {gitConfig.MasterBranch}") +
-                    GitHelper.FormatCliCommand($"push origin {gitConfig.TagPrefix}{hotfixName}")
-            );
+            var version = branch.Substring(config.HotfixPrefix.Length);
+            var tag = config.TagPrefix + version;
+            if (!await GitHelper.ValidateBranchName(config.MasterBranch) || !await GitHelper.ValidateBranchName(config.DevelopBranch) ||
+                !await GitHelper.ValidateBranchName(branch) || !await GitHelper.ValidateTagName(tag)) return;
+            var options = await General.GetLiveInstanceAsync();
+            var message = options.UseAnnotatedTag ? Interaction.InputBox("Tag message:", "Finish hotfix") : null;
+            if (options.UseAnnotatedTag && string.IsNullOrEmpty(message)) return;
+            await CommandHelper.SaveFiles();
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.FinishVersion(config.MasterBranch, config.DevelopBranch,
+                branch, tag, message, options.PullChanges), "Finishing hotfix " + version, branch,
+                new[] { new[] { "push", "origin", config.DevelopBranch }, new[] { "push", "origin", config.MasterBranch },
+                    new[] { "push", "origin", "refs/tags/" + tag } });
         }
+
     }
 }

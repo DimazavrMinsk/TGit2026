@@ -1,7 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -11,34 +13,23 @@ namespace TGit.Commands
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-            var hotfixVersion = Interaction.InputBox("Hotfix Version:", "Start New Hotfix");
-
-            if (string.IsNullOrEmpty(hotfixVersion))
+            var version = Interaction.InputBox("Hotfix Version:", "Start New Hotfix");
+            if (string.IsNullOrEmpty(version)) return;
+            var config = await GitHelper.GetGitConfig(refresh: true);
+            if (!GitHelper.IsGitFlow(config))
             {
+                await VS.MessageBox.ShowErrorAsync("GitFlow is not initialized.");
                 return;
             }
-
-            var flowOptions = await GitHelper.GetGitConfig();
+            var branch = config.HotfixPrefix + version;
+            if (!await GitHelper.ValidateBranchName(config.MasterBranch) || !await GitHelper.ValidateBranchName(branch)) return;
+            await CommandHelper.SaveFiles();
             var options = await General.GetLiveInstanceAsync();
-
-            /* 1. Switch to the master branch
-             * 2. Pull latest changes on master
-             * 3. Create and switch to a new hotfix branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    await GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand($"checkout {flowOptions.MasterBranch}") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"checkout -b {flowOptions.HotfixPrefix}{hotfixVersion} {flowOptions.MasterBranch}", false),
-                $"Starting hotfix {hotfixVersion}"
-            );
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Start(config.MasterBranch, branch, options.PullChanges),
+                "Starting hotfix " + version);
         }
-
-        protected override async void BeforeQueryStatus(System.EventArgs e)
-        {
-            Command.Visible = await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow();
-        }
+        protected override void BeforeQueryStatus(EventArgs e)
+            => CommandHelper.RunAsync(async () => Command.Visible =
+                await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow(), false);
     }
 }

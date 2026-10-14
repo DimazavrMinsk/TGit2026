@@ -1,7 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -11,34 +13,23 @@ namespace TGit.Commands
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-            var releaseVersion = Interaction.InputBox("Release Version:", "Start New Release");
-
-            if (string.IsNullOrEmpty(releaseVersion))
+            var version = Interaction.InputBox("Release Version:", "Start New Release");
+            if (string.IsNullOrEmpty(version)) return;
+            var config = await GitHelper.GetGitConfig(refresh: true);
+            if (!GitHelper.IsGitFlow(config))
             {
+                await VS.MessageBox.ShowErrorAsync("GitFlow is not initialized.");
                 return;
             }
-
-            var flowOptions = await GitHelper.GetGitConfig();
+            var branch = config.ReleasePrefix + version;
+            if (!await GitHelper.ValidateBranchName(config.DevelopBranch) || !await GitHelper.ValidateBranchName(branch)) return;
+            await CommandHelper.SaveFiles();
             var options = await General.GetLiveInstanceAsync();
-
-            /* 1. Switch to the develop branch
-             * 2. Pull latest changes on develop
-             * 3. Create and switch to a new release branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    await GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand($"checkout {flowOptions.DevelopBranch}") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"checkout -b {flowOptions.ReleasePrefix}{releaseVersion} {flowOptions.DevelopBranch}", false),
-                $"Starting release {releaseVersion}"
-            );
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Start(config.DevelopBranch, branch, options.PullChanges),
+                "Starting release " + version);
         }
-
-        protected override async void BeforeQueryStatus(System.EventArgs e)
-        {
-            Command.Visible = await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow();
-        }
+        protected override void BeforeQueryStatus(EventArgs e)
+            => CommandHelper.RunAsync(async () => Command.Visible =
+                await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow(), false);
     }
 }

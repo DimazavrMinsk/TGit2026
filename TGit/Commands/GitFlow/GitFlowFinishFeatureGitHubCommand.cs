@@ -1,6 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
+using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -10,40 +13,20 @@ namespace TGit.Commands
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-            var featureBranch = await GitHelper.GetCurrentBranchName(false);
-            var featureName = await GitHelper.GetCurrentBranchName(true);
+            var branch = await GitHelper.GetCurrentBranchName(false);
+            var baseBranch = await GitHelper.GetDefaultBranchName();
+            if (string.IsNullOrEmpty(branch) || branch == baseBranch)
+            {
+                await VS.MessageBox.ShowErrorAsync("Switch to a feature branch before finishing it.");
+                return;
+            }
+            if (!await GitHelper.ValidateBranchName(baseBranch) || !await GitHelper.ValidateBranchName(branch)) return;
+            await CommandHelper.SaveFiles();
             var options = await General.GetLiveInstanceAsync();
-            var gitConfig = await GitHelper.GetGitConfig();
-            var isGitFlow = GitHelper.IsGitFlow(gitConfig);
-
-            if (!isGitFlow)
-            {
-                await VS.MessageBox.ShowErrorAsync("GitFlow is not initialized.");
-                return;
-            }
-
-            if (!featureBranch.StartsWith(gitConfig.FeaturePrefix))
-            {
-                await VS.MessageBox.ShowErrorAsync("Current branch is not a feature branch.");
-                return;
-            }
-
-            /* 1. Switch to the master branch
-             * 2. Pull latest changes on master
-             * 3. Merge the feature branch to master
-             * 4. Push all changes to master
-             * 5. Delete the local feature branch
-             * 6. Delete the remote feature branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    await GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand("checkout master") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"merge --no-ff {featureBranch}", false),
-                $"Finishing feature {featureName}",
-                featureBranch, null, GitHelper.FormatCliCommand("push origin master"));
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Finish(baseBranch, branch, options.PullChanges),
+                "Finishing feature " + branch, branch,
+                new[] { new[] { "push", "origin", baseBranch } });
         }
+
     }
 }

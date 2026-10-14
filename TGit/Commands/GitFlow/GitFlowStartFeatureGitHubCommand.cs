@@ -1,7 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -12,27 +14,14 @@ namespace TGit.Commands
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
             var featureName = Interaction.InputBox("Feature Name:", "Start New Feature");
-
-            if (string.IsNullOrEmpty(featureName))
-            {
-                return;
-            }
-
+            if (string.IsNullOrEmpty(featureName)) return;
+            var baseBranch = await GitHelper.GetDefaultBranchName();
+            if (!await GitHelper.ValidateBranchName(baseBranch) || !await GitHelper.ValidateBranchName(featureName)) return;
+            await CommandHelper.SaveFiles();
             var options = await General.GetLiveInstanceAsync();
-
-            /* 1. Switch to the master branch
-             * 2. Pull latest changes on master
-             * 3. Create and switch to a new branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    await GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand("checkout master") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"checkout -b {featureName} master", false),
-                $"Starting feature {featureName}"
-            );
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Start(baseBranch, featureName, options.PullChanges),
+                "Starting feature " + featureName);
         }
+
     }
 }

@@ -3,3 +3,5 @@
 /TGit/*.user
 /TGit/bin
 /TGit/obj
+/tests/bin
+/tests/obj

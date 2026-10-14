@@ -1,7 +1,9 @@
-﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.Shell;
 using TGit.Helpers;
+using System;
+using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
 namespace TGit.Commands
@@ -12,33 +14,22 @@ namespace TGit.Commands
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
             var featureName = Interaction.InputBox("Feature Name:", "Start New Feature");
-
-            if (string.IsNullOrEmpty(featureName))
+            if (string.IsNullOrEmpty(featureName)) return;
+            var config = await GitHelper.GetGitConfig(refresh: true);
+            if (!GitHelper.IsGitFlow(config))
             {
+                await VS.MessageBox.ShowErrorAsync("GitFlow is not initialized.");
                 return;
             }
-
-            var flowOptions = await GitHelper.GetGitConfig();
+            var branch = config.FeaturePrefix + featureName;
+            if (!await GitHelper.ValidateBranchName(config.DevelopBranch) || !await GitHelper.ValidateBranchName(branch)) return;
+            await CommandHelper.SaveFiles();
             var options = await General.GetLiveInstanceAsync();
-
-            /* 1. Switch to the develop branch
-             * 2. Pull latest changes on develop
-             * 3. Create and switch to a new branch
-             */
-            await ProcessHelper.StartProcessGui(
-                "cmd.exe",
-                $"/c cd \"{await FileHelper.GetSolutionDir()}\" && " +
-                    GitHelper.GetSshSetup() +
-                    GitHelper.FormatCliCommand($"checkout {flowOptions.DevelopBranch}") +
-                    (options.PullChanges ? GitHelper.FormatCliCommand("pull") : string.Empty) +
-                    GitHelper.FormatCliCommand($"checkout -b {flowOptions.FeaturePrefix}{featureName} {flowOptions.DevelopBranch}", false),
-                $"Starting feature {featureName}"
-            );
+            await ProcessHelper.RunGitCommandsAsync(GitFlowPlan.Start(config.DevelopBranch, branch, options.PullChanges),
+                "Starting feature " + featureName);
         }
-
-        protected override async void BeforeQueryStatus(System.EventArgs e)
-        {
-            Command.Visible = await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow();
-        }
+        protected override void BeforeQueryStatus(EventArgs e)
+            => CommandHelper.RunAsync(async () => Command.Visible =
+                await FileHelper.HasSolutionDir() && await GitHelper.IsGitFlow(), false);
     }
 }

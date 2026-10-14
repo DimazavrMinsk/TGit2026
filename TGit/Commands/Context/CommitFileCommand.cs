@@ -17,8 +17,8 @@ namespace TGit.Commands
             var bugId = await GitHelper.GetCommitMessage(options.BugId);
             var gitConfig = await GitHelper.GetGitConfig();
 
-            var args = $"{(string.IsNullOrEmpty(commitMessage) ? string.Empty : $"/logmsg:\"{commitMessage}\"")} " +
-                $"{(!string.IsNullOrEmpty(bugId) && !string.IsNullOrEmpty(gitConfig.BugTraqMessage) ? $"/bugid:\"{bugId}\"" : string.Empty)}";
+            var args = (string.IsNullOrEmpty(commitMessage) ? string.Empty : ProcessHelper.FormatTortoiseArgument("logmsg", commitMessage)) + " " +
+                (!string.IsNullOrEmpty(bugId) && !string.IsNullOrEmpty(gitConfig.BugTraqMessage) ? ProcessHelper.FormatTortoiseArgument("bugid", bugId) : string.Empty);
 
             await ProcessHelper.RunTortoiseGitFileCommand("commit", args);
         }
