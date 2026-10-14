@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+    <Metadata>
+        <Identity Id="f4ddbfad-b5f6-4248-aa82-6d21e045e8da" Version="1.0.0" Language="en-US" Publisher="Dmitriy Gorbachevskiy" />
+        <DisplayName>TGit2026</DisplayName>
+        <Description xml:space="preserve">Control TortoiseGit from within Visual Studio</Description>
+        <MoreInfo>https://github.com/DimazavrMinsk/TGit2026.git</MoreInfo>
+        <License>Resources\License.txt</License>
+        <GettingStartedGuide>https://github.com/DimazavrMinsk/blob/master/README.md</GettingStartedGuide>
+        <ReleaseNotes>https://github.com/DimazavrMinsk/releases</ReleaseNotes>
+        <Icon>Resources\Package.ico</Icon>
+        <PreviewImage>Resources\Preview.jpg</PreviewImage>
+        <Tags>Git, Source control, Tortoise, repository</Tags>
+    </Metadata>
+    <Installation InstalledByMsi="false">
+        <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,)">
+            <ProductArchitecture>amd64</ProductArchitecture>
+        </InstallationTarget>
+    </Installation>
+    <Assets>
+        <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    </Assets>
+    <Prerequisites>
+        <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,)" DisplayName="Visual Studio core editor" />
+    </Prerequisites>
+</PackageManifest>

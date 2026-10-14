@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "source control" ],
+  "identity": {
+    "internalName": "TGit2026"
+  },
+  "overview": "README.md",
+  "priceCategory": "free",
+  "publisher": "DmitriyGorbachevskiy",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/DimazavrMinsk/TGit2026.git"
+}

@@ -1,0 +1,5 @@
+/.vs
+/.packages
+/TGit/*.user
+/TGit/bin
+/TGit/obj
